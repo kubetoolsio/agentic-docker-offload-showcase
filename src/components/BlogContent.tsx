@@ -492,6 +492,58 @@ async def health():
         mermaidCode={deploymentMermaid}
       />
 
+      {/* Installation & Testing */}
+      <Card className="floating-card">
+        <CardHeader>
+          <CardTitle className="text-2xl text-primary">
+            🚀 Installation & End-to-End Testing
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          
+          <div>
+            <h4 className="font-semibold mb-3 text-accent">Quick Setup</h4>
+            <CodeBlock 
+              code={`# 1. Clone and setup
+git clone <repository>
+cd ai-docker-offload-demo
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+
+# 2. Start the system
+docker-compose up -d
+
+# 3. Test the system
+./scripts/test-system.sh
+
+# 4. Run benchmarks
+./scripts/benchmark.sh --local-gpu`}
+              language="bash"
+              title="Installation Commands"
+            />
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-3 text-primary">System Testing</h4>
+            <CodeBlock 
+              code={`# Health checks
+curl http://localhost:8080/health
+curl http://localhost:8080/models
+
+# Inference testing
+./scripts/test-inference.sh text "Hello AI world"
+./scripts/test-inference.sh image ./test-data/sample.jpg
+
+# Performance benchmarking
+./scripts/benchmark.sh stress`}
+              language="bash"
+              title="Testing Commands"
+            />
+          </div>
+
+        </CardContent>
+      </Card>
+
       {/* Performance & Results */}
       <Card className="floating-card">
         <CardHeader>

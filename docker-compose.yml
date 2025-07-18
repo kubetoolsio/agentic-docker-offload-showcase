@@ -1,0 +1,143 @@
+# docker-compose.yml - Agentic AI Pipeline with GPU Offload
+version: '3.8'
+
+services:
+  # GPU-accelerated model server
+  triton-server:
+    image: nvcr.io/nvidia/tritonserver:24.01-py3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "8000:8000"  # HTTP
+      - "8001:8001"  # gRPC  
+      - "8002:8002"  # Metrics
+    volumes:
+      - ./models:/models:ro
+      - ./triton-config:/etc/triton:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TRITON_LOG_LEVEL=INFO
+    command: tritonserver --model-repository=/models --strict-model-config=false --log-verbose=1
+    networks:
+      - ai-pipeline
+    labels:
+      - "docker-offload.priority=high"
+      - "docker-offload.gpu-required=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Preprocessing agent
+  preprocessor:
+    build: ./agents/preprocessor
+    depends_on:
+      triton-server:
+        condition: service_healthy
+    environment:
+      - TRITON_URL=triton-server:8000
+      - LOG_LEVEL=INFO
+    networks:
+      - ai-pipeline
+    labels:
+      - "docker-offload.priority=medium"
+      - "docker-offload.cpu-optimized=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Inference coordinator agent
+  inference-coordinator:
+    build: ./agents/coordinator
+    ports:
+      - "8080:8080"
+    depends_on:
+      triton-server:
+        condition: service_healthy
+      preprocessor:
+        condition: service_healthy
+    environment:
+      - TRITON_URL=triton-server:8000
+      - PREPROCESSOR_URL=preprocessor:8000
+      - LOG_LEVEL=INFO
+    networks:
+      - ai-pipeline
+    labels:
+      - "docker-offload.priority=high"
+      - "docker-offload.edge-capable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Results aggregator agent
+  aggregator:
+    build: ./agents/aggregator
+    depends_on:
+      inference-coordinator:
+        condition: service_healthy
+    environment:
+      - COORDINATOR_URL=inference-coordinator:8080
+      - LOG_LEVEL=INFO
+    networks:
+      - ai-pipeline
+    labels:
+      - "docker-offload.priority=low"
+      - "docker-offload.memory-optimized=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Monitoring and metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - ai-pipeline
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - ai-pipeline
+    profiles:
+      - monitoring
+
+networks:
+  ai-pipeline:
+    driver: bridge
+
+volumes:
+  model-cache:
+    driver: local
+  grafana-storage:
+    driver: local

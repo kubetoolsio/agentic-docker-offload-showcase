@@ -1,0 +1,94 @@
+# docker-offload.yml - Intelligent workload placement configuration
+apiVersion: offload.docker.com/v1
+kind: OffloadPolicy
+metadata:
+  name: ai-inference-policy
+  namespace: default
+spec:
+  services:
+    triton-server:
+      placement:
+        - target: gpu-cluster
+          priority: 1
+          requirements:
+            gpu: "nvidia-a100"
+            memory: "16Gi"
+            cpu: "4"
+          conditions:
+            - type: "gpu_memory_available"
+              value: ">= 8Gi"
+            - type: "latency"
+              value: "< 50ms"
+        - target: cloud-gpu
+          priority: 2
+          requirements:
+            gpu: "any"
+            memory: "8Gi"
+            cpu: "2"
+          cost_threshold: 0.50  # USD per hour
+          
+    preprocessor:
+      placement:
+        - target: edge-compute
+          priority: 1
+          requirements:
+            cpu: "2"
+            memory: "4Gi"
+          conditions:
+            - type: "cpu_utilization"
+              value: "< 70%"
+        - target: local
+          priority: 2
+          requirements:
+            cpu: "1"
+            memory: "2Gi"
+          
+    inference-coordinator:
+      placement:
+        - target: edge-compute
+          priority: 1
+          requirements:
+            cpu: "2"
+            memory: "2Gi"
+        - target: local
+          priority: 2
+          requirements:
+            cpu: "1"
+            memory: "1Gi"
+            
+    aggregator:
+      placement:
+        - target: local
+          priority: 1
+          requirements:
+            cpu: "1"
+            memory: "1Gi"
+        - target: edge-compute
+          priority: 2
+          
+  routing:
+    latency_threshold: "100ms"
+    cost_optimization: true
+    auto_scaling: true
+    load_balancing: "round_robin"
+    
+  policies:
+    - name: "gpu_efficiency"
+      condition: "gpu_utilization < 30%"
+      action: "scale_down"
+      
+    - name: "cost_optimization"
+      condition: "cost_per_request > 0.10"
+      action: "offload_to_cheaper_target"
+      
+    - name: "latency_optimization"
+      condition: "response_time > 200ms"
+      action: "prefer_local_deployment"
+      
+  monitoring:
+    metrics_interval: "30s"
+    alert_thresholds:
+      gpu_memory_usage: 85
+      cpu_usage: 80
+      response_time: 500  # milliseconds
+      cost_per_hour: 5.00  # USD
