@@ -11,7 +11,7 @@ spec:
         - target: gpu-cluster
           priority: 1
           requirements:
-            gpu: "nvidia-a100"
+            gpu: "nvidia-l4"
             memory: "16Gi"
             cpu: "4"
           conditions:

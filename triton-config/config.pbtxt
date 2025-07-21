@@ -1,0 +1,11 @@
+# Global Triton configuration
+backend_directory: "/opt/tritonserver/backends"
+model_repository_path: "/models"
+strict_model_config: false
+log_verbose: 1
+
+# Resource limits
+cuda_memory_pool_byte_size { 
+  key: 0 
+  value: 1073741824  # 1GB
+}

@@ -22,7 +22,14 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - TRITON_LOG_LEVEL=INFO
-    command: tritonserver --model-repository=/models --strict-model-config=false --log-verbose=1
+      - LD_LIBRARY_PATH=/opt/tritonserver/lib
+    command: >
+      tritonserver
+      --model-repository=/models
+      --backend-directory=/opt/tritonserver/backends
+      --backend-config=python,shm-default-byte-size=1048576
+      --strict-model-config=false
+      --log-verbose=1
     networks:
       - ai-pipeline
     labels:

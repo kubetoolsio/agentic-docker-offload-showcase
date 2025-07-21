@@ -1,0 +1,23 @@
+name: "text_classifier"
+platform: "python"
+max_batch_size: 8
+input [
+  {
+    name: "INPUT"
+    data_type: TYPE_FP32
+    dims: [ 512 ]
+  }
+]
+output [
+  {
+    name: "OUTPUT"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]

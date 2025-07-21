@@ -6,7 +6,7 @@ set -e
 echo "📥 Downloading AI models for testing..."
 
 # Create model directories
-mkdir -p models/{text_classifier,image_classifier,speech_to_text}/{1,model.py}
+mkdir -p models/{text_classifier,image_classifier,speech_to_text}/1
 mkdir -p triton-config
 
 # Function to download model safely

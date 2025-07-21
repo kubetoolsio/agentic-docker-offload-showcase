@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
-COPY utils/ ./utils/
+# COPY utils/ ./utils/
 
 # Create non-root user
 RUN useradd -m -u 1000 agent && chown -R agent:agent /app
